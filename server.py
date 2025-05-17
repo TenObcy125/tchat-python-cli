@@ -1,8 +1,9 @@
 import socket
 import threading
-import random
 from typing import Dict
-from commands.todo_menager import TODO 
+import json
+import random
+from commands.todo_menager import TODO
 
 class Server:
     COLORS = [
@@ -14,14 +15,14 @@ class Server:
 
     def __init__(self):
         self.clients: Dict[socket.socket, Dict[str, str]] = {}
-        self.todo_waiting: Dict[socket.socket, bool] = {} 
-        self.todo = TODO() 
         self.host = socket.gethostname()
         self.port = 5001
         self.server_socket = socket.socket()
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.running = True
         self.host_client = None
+        self.todo = TODO()
+        self.todo_waiting = {}
 
     def assign_color(self):
         return random.choice(self.COLORS)
@@ -39,7 +40,6 @@ class Server:
             nickname = self.clients[client_socket]['nickname']
             color = self.clients[client_socket]['color']
             del self.clients[client_socket]
-            del self.todo_waiting[client_socket]
             leave_msg = f"{color}[{nickname}]\033[0m has left the chat."
             self.broadcast(leave_msg)
             print(leave_msg)
@@ -58,7 +58,6 @@ class Server:
             'color': color,
             'address': address
         }
-        self.todo_waiting[client_socket] = False
 
         welcome_msg = f"{color}[{nickname}]\033[0m has joined the chat."
         print(welcome_msg)
@@ -70,14 +69,15 @@ class Server:
                 if not message:
                     break
 
-                if self.todo_waiting[client_socket]:
+                # Check if we're expecting task title from this client
+                if client_socket in self.todo_waiting:
                     title = message.strip()
                     if title:
                         response = self.todo.add_task(title, nickname)
                         client_socket.send(f"✅ {response}".encode())
                     else:
-                        client_socket.send("❌ Tytuł nie może być pusty.".encode())
-                    self.todo_waiting[client_socket] = False
+                        client_socket.send("❌ Title cannot be empty.".encode())
+                    del self.todo_waiting[client_socket]
                     continue
 
                 if message.startswith('/todo'):
@@ -88,7 +88,7 @@ class Server:
 
                     elif message.strip() == '/todo-add':
                         self.todo_waiting[client_socket] = True
-                        client_socket.send("Podaj tytuł zadania:".encode())
+                        client_socket.send("Enter the task title:".encode())
                         continue
 
                     elif message.startswith('/todo-add '):
@@ -97,11 +97,24 @@ class Server:
                             response = self.todo.add_task(title, nickname)
                             client_socket.send(f"✅ {response}".encode())
                         else:
-                            client_socket.send("❌ Podaj tytuł zadania.".encode())
+                            client_socket.send("❌ Task title cannot be empty.".encode())
+                        continue
+
+                    elif message.startswith('/todo-set '):
+                        try:
+                            parts = message.strip().split()
+                            if len(parts) != 3:
+                                raise ValueError("Invalid format.")
+                            task_num = int(parts[1])
+                            complete = parts[2].lower() == 'true'
+                            response = self.todo.set_completion(task_num, complete)
+                            client_socket.send(f"✅ {response}".encode())
+                        except ValueError:
+                            client_socket.send("❌ Usage: /todo-set [number] [true/false]".encode())
                         continue
 
                     else:
-                        client_socket.send("❌ Nieznana komenda TODO.".encode())
+                        client_socket.send("❌ Unknown TODO command.".encode())
                         continue
 
                 if message.startswith('/'):
@@ -110,7 +123,7 @@ class Server:
                             self.shutdown()
                             break
                         elif message.lower() == '/users':
-                            users_list = "\nConnected users:\n"
+                            users_list = "Connected users:\n"
                             for client in self.clients.values():
                                 users_list += f"- {client['nickname']}\n"
                             client_socket.send(users_list.encode())
@@ -119,7 +132,6 @@ class Server:
                 formatted_msg = f"{color}[{nickname}]\033[0m: {message}"
                 print(formatted_msg)
                 self.broadcast(formatted_msg, client_socket)
-
         except:
             pass
 
@@ -152,4 +164,3 @@ class Server:
             self.shutdown()
         except:
             self.shutdown()
-
