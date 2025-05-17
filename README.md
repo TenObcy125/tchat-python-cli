@@ -1,6 +1,12 @@
-# TChat
+# TChat v1.1.0
 
 **TChat** is a terminal-based chat application that allows users to communicate directly through the command line interface (CLI).
+
+## Whats new?
+* **TODO list** now available!
+* use ```/todo``` to show TODO list.
+* use ```/todo-add``` to add task to list.
+* use ```/todo-set [task number] [true / false]``` to change status to complete or unfinished.
 
 ## How to Use
 
@@ -24,7 +30,8 @@
 ## Features (Coming Soon)
 
 - File transfer between users
-- Built-in to-do list inside the chat
+- Emoji system
+- more features (:
 
 ## License
 
