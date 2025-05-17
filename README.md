@@ -1,13 +1,14 @@
-# TChat v1.1.0
+# TChat v1.2.0
 
 **TChat** is a terminal-based chat application that allows users to communicate directly through the command line interface (CLI).
 
 ## Whats new?
-* **TODO list** now available!
+* **TODO list, uploading files and server settings** now available!
 * use ```/todo``` to show TODO list.
 * use ```/todo-add``` to add task to list.
 * use ```/todo-set [task number] [true / false]``` to change status to complete or unfinished.
 
+* use ```/upload``` to upload file.
 ## How to Use
 
 1. Clone the repository:
@@ -29,8 +30,9 @@
 
 ## Features (Coming Soon)
 
-- File transfer between users
 - Emoji system
+- Server password system
+- Private messages
 - more features (:
 
 ## License
