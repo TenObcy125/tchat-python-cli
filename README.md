@@ -2,6 +2,10 @@
 
 **TChat** is a terminal-based chat application that allows users to communicate directly through the command line interface (CLI).
 
+ <p><a href="https://github.com/TenObcy125/tchat-documentation/blob/main/docs/getting-started.md" target="_blank">
+    👉 Getting started
+  </a></p>
+
 ## Whats new?
 * **TODO list, uploading files and server settings** now available!
 * use ```/todo``` to show TODO list.
