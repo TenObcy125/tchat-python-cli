@@ -1,71 +1,91 @@
 import socket
 import threading
+import queue
 import sys
+import select
 
 class Client:
-    def __init__(self, host: str, port: int):
+    def __init__(self, host, port):
         self.host = host
         self.port = port
         self.client_socket = socket.socket()
         self.running = True
-        self.prompt = "\nYou: "
-        self.lock = threading.Lock()
+        self.input_queue = queue.Queue()
+        self.prompt = "You: "
 
-    def display_message(self, message):
-        with self.lock:
+    def display(self, msg):
+        sys.stdout.write("\r" + " " * 100 + "\r") 
+        print(msg)
+        sys.stdout.write(self.prompt)
+        sys.stdout.flush()
 
-            print(f"\n{message}", end='')
-            # Reprint the prompt
-            sys.stdout.write(self.prompt)
-            sys.stdout.flush()
+    def handle_todo_command(self, command):
+        try:
+            self.client_socket.send(command.encode())
+
+            if command == '/todo-add':
+                response = self.client_socket.recv(1024).decode()
+                if response == "TITLE_PROMPT":
+                    sys.stdout.write("> Task Title: ")
+                    sys.stdout.flush()
+                    title = input()
+                    self.client_socket.send(f"/todo-add {title}".encode())
+                    response = self.client_socket.recv(1024).decode()
+                self.display(response)
+            else:
+                response = self.client_socket.recv(1024).decode()
+                self.display(response)
+        except Exception as e:
+            self.display(f"\033[91mTODO error: {e}\033[0m")
 
     def receive_messages(self):
         while self.running:
             try:
-                message = self.client_socket.recv(1024).decode()
-                if not message:
-                    self.display_message("\033[91mConnection lost with server\033[0m")
-                    self.running = False
-                    break
-                self.display_message(message)
-            except Exception as e:
-                print(f"\n\033[91mError receiving messages: {e}\033[0m")
+                ready, _, _ = select.select([self.client_socket], [], [], 0.1)
+                if ready:
+                    message = self.client_socket.recv(1024).decode()
+                    if not message:
+                        self.running = False
+                        break
+
+                    if message != "TITLE_PROMPT":
+                        self.display(message)
+            except:
                 self.running = False
                 break
 
     def run(self):
         nickname = input("Enter your nickname: ")
+
         try:
             self.client_socket.connect((self.host, self.port))
             self.client_socket.send(nickname.encode())
-            
-            receive_thread = threading.Thread(target=self.receive_messages)
-            receive_thread.daemon = True
-            receive_thread.start()
-            
+
+            threading.Thread(target=self.receive_messages, daemon=True).start()
+
             print("\nConnected to chat! Type your messages (type '/help' for commands)")
-            
+
             while self.running:
-                try:
-                    message = input(self.prompt)
-                    if message.lower() == 'exit':
-                        self.running = False
-                        break
-                    try:
-                        self.client_socket.send(message.encode())
-                    except Exception as e:
-                        print(f"\n\033[91mFailed to send message: {e}\033[0m")
-                        break
-                except KeyboardInterrupt:
+                sys.stdout.write(self.prompt)
+                sys.stdout.flush()
+                user_input = input()
+
+                if not user_input:
+                    continue
+
+                if user_input.lower() == 'exit':
                     self.running = False
                     break
-                except EOFError:
-                    self.running = False
-                    break
-            
+
+                if user_input.startswith('/todo'):
+                    self.handle_todo_command(user_input)
+                else:
+                    self.client_socket.send(user_input.encode())
+
             self.client_socket.close()
-            print("\nDisconnected from chat")
-        except ConnectionRefusedError:
-            print("\033[91mCould not connect to server\033[0m")
+            print("\nDisconnected from chat.")
+
         except Exception as e:
-            print(f"\033[91mError: {e}\033[0m")
+            print(f"\033[91mConnection error: {e}\033[0m")
+
+
