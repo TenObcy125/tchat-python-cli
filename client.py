@@ -14,7 +14,6 @@ class Client:
         self.input_queue = queue.Queue()
 
     def display(self, msg):
-
         print("\r" + " " * 100 + "\r" + msg)
 
     def upload_file(self, filename):
@@ -65,6 +64,27 @@ class Client:
 
         try:
             self.client_socket.connect((self.host, self.port))
+            
+            # Handle password authentication
+            auth_response = self.client_socket.recv(1024).decode()
+            if auth_response == "PASSWORD_REQUIRED":
+                password = input("Enter server password: ")
+                self.client_socket.send(password.encode())
+                auth_result = self.client_socket.recv(1024).decode()
+                if auth_result == "AUTH_FAILED":
+                    print("\033[91mIncorrect password. Connection refused.\033[0m")
+                    self.client_socket.close()
+                    return
+                elif auth_result != "AUTH_SUCCESS":
+                    print("\033[91mAuthentication error. Connection refused.\033[0m")
+                    self.client_socket.close()
+                    return
+            elif auth_response != "NO_PASSWORD":
+                print("\033[91mConnection error. Please try again.\033[0m")
+                self.client_socket.close()
+                return
+
+            # Send nickname after authentication
             self.client_socket.send(nickname.encode())
 
             threading.Thread(target=self.receive_messages, daemon=True).start()

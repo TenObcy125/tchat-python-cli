@@ -4,6 +4,7 @@ import questionary
 from server import Server
 from client import Client
 from http_server import TChatHTTPServer
+from commands.password import PasswordMiddleware
 
 def get_local_ipv4():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -31,7 +32,13 @@ def server_submenu():
 def server_settings_menu():
     return questionary.select(
         "Settings menu:",
-        choices=["Set password", "Back"]
+        choices=["Password options", "Back"]
+    ).ask()
+
+def password_options_menu():
+    return questionary.select(
+        "Password options:",
+        choices=["Set new password", "Remove password", "Back"]
     ).ask()
 
 def main():
@@ -44,6 +51,7 @@ def main():
     print(f"[INFO] Server will bind to local IPv4: {host_ip}")
 
     http_server = TChatHTTPServer(host=host_ip, port=5002)
+    password_middleware = PasswordMiddleware()
 
     if args.command == 'start':
         print('Welcome to TChat – a Terminal-based chat for all developer geeks.\n')
@@ -78,10 +86,21 @@ def main():
                     elif submenu_selected == "Settings":
                         while True:
                             settings_selected = server_settings_menu()
-                            if settings_selected == "Set password":
-                                password = questionary.text("Enter new password:").ask()
-                                # TODO: save password
-                                print(f"Password set to: {password}")
+                            if settings_selected == "Password options":
+                                while True:
+                                    password_selected = password_options_menu()
+                                    if password_selected == "Set new password":
+                                        password = questionary.password("Enter new password:").ask()
+                                        if password:
+                                            password_middleware.set_password(password)
+                                            print("\033[92mPassword set successfully!\033[0m")
+                                        else:
+                                            print("\033[91mPassword cannot be empty!\033[0m")
+                                    elif password_selected == "Remove password":
+                                        password_middleware.set_password("")
+                                        print("\033[92mPassword removed successfully!\033[0m")
+                                    elif password_selected == "Back":
+                                        break
                             elif settings_selected == "Back" or settings_selected is None:
                                 break
 

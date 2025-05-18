@@ -33,7 +33,6 @@ class TChatHTTPServer:
                     boundary = content_type.split('boundary=')[-1].encode()
                     body = self.rfile.read(content_length)
 
-                    # Rozbijamy na części po boundary
                     parts = body.split(b'--' + boundary)
                     for part in parts:
                         if b'Content-Disposition' in part and b'name="file"' in part:

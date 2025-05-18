@@ -4,6 +4,7 @@ from typing import Dict
 import json
 import random
 from commands.todo_menager import TODO
+from commands.password import PasswordMiddleware
 
 class Server:
     COLORS = [
@@ -23,6 +24,8 @@ class Server:
         self.host_client = None
         self.todo = TODO()
         self.todo_waiting = {}
+        self.password_middleware = PasswordMiddleware()
+        self.authenticated_clients = set()
 
     def assign_color(self):
         return random.choice(self.COLORS)
@@ -45,8 +48,25 @@ class Server:
             print(leave_msg)
             if client_socket == self.host_client:
                 self.shutdown()
+        if client_socket in self.authenticated_clients:
+            self.authenticated_clients.remove(client_socket)
 
     def handle_client(self, client_socket: socket.socket, address: tuple):
+        # Password authentication
+        if self.password_middleware.is_password_set():
+            client_socket.send("PASSWORD_REQUIRED".encode())
+            password_attempt = client_socket.recv(1024).decode()
+            
+            if not self.password_middleware.verify_password(password_attempt):
+                client_socket.send("AUTH_FAILED".encode())
+                client_socket.close()
+                return
+            else:
+                client_socket.send("AUTH_SUCCESS".encode())
+                self.authenticated_clients.add(client_socket)
+        else:
+            client_socket.send("NO_PASSWORD".encode())
+
         nickname = client_socket.recv(1024).decode()
         color = self.assign_color()
 
@@ -69,7 +89,6 @@ class Server:
                 if not message:
                     break
 
-                # Check if we're expecting task title from this client
                 if client_socket in self.todo_waiting:
                     title = message.strip()
                     if title:
